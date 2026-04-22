@@ -894,12 +894,30 @@
 
       currentIndex = VOCAB_DATA.length;
       updateControls();
+
+      // Auto-loop: return to intro after 3 seconds
+      await delay(3000);
+      if (cancelled(id)) return;
+      await waitIfPaused(id);
+      if (cancelled(id)) return;
+
+      // Reset and restart
+      setVisible('#outroEmoji', false);
+      setVisible('#outroTitle', false);
+      setVisible('#outroSub', false);
+      setVisible('#introDay', false);
+      setVisible('#introCount', false);
+      currentIndex = -1;
+      await showIntro();
+      if (cancelled(id)) return;
+      runWord(0);
     }
 
     // ============ CONTROLS ============
     function updateControls() {
       $('#btnPrev').disabled = currentIndex <= 0;
-      $('#btnNext').disabled = currentIndex >= VOCAB_DATA.length;
+      // btnNext is never disabled (loops back to start)
+      $('#btnNext').disabled = false;
     }
 
     function togglePause() {
@@ -915,13 +933,14 @@
 
     function goNext() {
       cancelSpeech();
+      isPaused = false;
+      $('#iconPlay').style.display = 'none';
+      $('#iconPause').style.display = 'block';
       if (currentIndex < VOCAB_DATA.length - 1) {
-        isPaused = false;
-        $('#iconPlay').style.display = 'none';
-        $('#iconPause').style.display = 'block';
         runWord(currentIndex + 1);
-      } else if (currentIndex === VOCAB_DATA.length - 1) {
-        showOutroScreen();
+      } else {
+        // Loop: go back to first word
+        runWord(0);
       }
     }
 
