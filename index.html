@@ -669,6 +669,24 @@
     const sharedAudio = new Audio();
     let audioResolve = null;
 
+    // Boost Korean audio volume via Web Audio API
+    let gainNode = null;
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaElementSource(sharedAudio);
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = 2.5; // 2.5x volume boost
+      source.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      // Resume AudioContext on user gesture (iOS requirement)
+      const resumeCtx = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); };
+      document.addEventListener('touchstart', resumeCtx, { once: true });
+      document.addEventListener('click', resumeCtx, { once: true });
+    } catch(e) {
+      // Fallback: max volume without gain
+      sharedAudio.volume = 1.0;
+    }
+
     sharedAudio.addEventListener('ended', () => {
       if (audioResolve) { audioResolve(); audioResolve = null; }
     });
