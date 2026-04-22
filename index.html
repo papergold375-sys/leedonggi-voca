@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>이동기 VOCA</title>
+  <meta name="description" content="이동기 VOCA — 영어 단어 학습 앱">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a365d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="이동기 VOCA">
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ============ Reset & Variables ============ */
+    :root {
+      --bg1: #0F1729;
+      --bg2: #1A2332;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --word-color: #F7FAFC;
+      --meaning-color: #B794F4;
+      --example-color: #E2E8F0;
+      --translation-color: #A0AEC0;
+      --accent: #805AD5;
+      --accent-light: #B794F4;
+      --accent-glow: rgba(128, 90, 213, 0.3);
+      --subtitle: #718096;
+      --progress-track: rgba(128, 90, 213, 0.15);
+      --progress-fill: linear-gradient(90deg, #805AD5, #B794F4);
+      --font-en: 'Inter', -apple-system, sans-serif;
+      --font-ko: 'Noto Sans KR', -apple-system, sans-serif;
+      --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg1);
+      color: var(--word-color);
+      font-family: var(--font-en);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============ App Container ============ */
+    #app {
+      position: relative;
+      max-width: 480px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      overflow: hidden;
+      background: linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 100%);
+    }
+
+    /* Background decorations */
+    .bg-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bg-blob-1 {
+      width: 280px; height: 280px;
+      background: var(--accent);
+      opacity: 0.12;
+      top: 8%; left: -15%;
+      animation: float 25s ease-in-out infinite;
+    }
+    .bg-blob-2 {
+      width: 200px; height: 200px;
+      background: #553C9A;
+      opacity: 0.1;
+      bottom: 15%; right: -10%;
+      animation: float 25s ease-in-out infinite reverse;
+      animation-delay: -12s;
+    }
+
+    /* ============ Progress Bar ============ */
+    .progress-container {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 16px 24px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .progress-container.visible { opacity: 1; }
+
+    .progress-track {
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--progress-track);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--progress-fill);
+      width: 0%;
+      transition: width 0.6s var(--ease-out);
+    }
+    .progress-counter {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--subtitle);
+      white-space: nowrap;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    /* ============ Screens ============ */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 32px 100px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+      z-index: 10;
+    }
+    .screen.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* ============ Intro Screen ============ */
+    .intro-day {
+      font-size: 72px;
+      font-weight: 900;
+      letter-spacing: -3px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--word-color), var(--accent-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      opacity: 0;
+      transform: scale(0.85);
+      transition: opacity 0.8s var(--spring), transform 0.8s var(--spring);
+    }
+    .intro-day.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .intro-count {
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--subtitle);
+      letter-spacing: 6px;
+      margin-top: 12px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.6s ease 0.3s, transform 0.6s ease 0.3s;
+    }
+    .intro-count.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ============ Word Screen ============ */
+    .word-number {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .word-number.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .word-en {
+      font-size: 72px;
+      font-weight: 800;
+      color: var(--word-color);
+      font-family: var(--font-en);
+      letter-spacing: -2px;
+      cursor: pointer;
+      position: relative;
+      opacity: 0;
+      transform: scale(0.85);
+      transition: opacity 0.7s var(--spring), transform 0.7s var(--spring);
+    }
+    .word-en.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .word-en:hover { color: var(--accent-light); }
+
+    .word-divider {
+      width: 50px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--progress-fill);
+      margin: 20px 0 24px;
+      opacity: 0;
+      transform: scaleX(0);
+      transition: opacity 0.5s ease 0.2s, transform 0.5s var(--spring) 0.2s;
+    }
+    .word-divider.visible {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+
+    .word-ko {
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--meaning-color);
+      font-family: var(--font-ko);
+      text-align: center;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(15px);
+      transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+    }
+    .word-ko.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .word-ko:hover { color: #D6BCFA; }
+
+    /* Speaker indicator */
+    .speaker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .speaker-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--accent-light);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .speaker-icon.active {
+      opacity: 1;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    /* ============ Example Screen ============ */
+    .example-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 36px 28px;
+      width: 100%;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .example-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .example-label.visible { opacity: 1; }
+
+    .example-en {
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--example-color);
+      font-family: var(--font-en);
+      line-height: 1.5;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+    }
+    .example-en.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .example-divider {
+      width: 100%;
+      height: 1px;
+      background: var(--card-border);
+      margin: 24px 0;
+      opacity: 0;
+      transition: opacity 0.4s ease 0.2s;
+    }
+    .example-divider.visible { opacity: 1; }
+
+    .example-ko {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--translation-color);
+      font-family: var(--font-ko);
+      line-height: 1.6;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+    }
+    .example-ko.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Highlight styles */
+    .hl-en {
+      color: var(--accent-light);
+      font-weight: 700;
+    }
+    .hl-ko {
+      color: var(--meaning-color);
+      font-weight: 700;
+    }
+
+    /* ============ Outro Screen ============ */
+    .outro-emoji {
+      font-size: 72px;
+      margin-bottom: 20px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.6s var(--spring), transform 0.6s var(--spring);
+    }
+    .outro-emoji.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .outro-title {
+      font-size: 48px;
+      font-weight: 800;
+      font-family: var(--font-ko);
+      opacity: 0;
+      transform: scale(0.9);
+      transition: opacity 0.6s var(--spring) 0.15s, transform 0.6s var(--spring) 0.15s;
+    }
+    .outro-title.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .outro-sub {
+      font-size: 22px;
+      color: var(--subtitle);
+      margin-top: 12px;
+      opacity: 0;
+      transition: opacity 0.5s ease 0.4s;
+    }
+    .outro-sub.visible { opacity: 1; }
+
+    /* ============ Controls ============ */
+    .controls {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      z-index: 200;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      padding: 20px 32px 36px;
+      background: linear-gradient(transparent, rgba(15, 23, 41, 0.9) 40%);
+    }
+    .ctrl-btn {
+      width: 52px;
+      height: 52px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--word-color);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, transform 0.2s;
+      outline: none;
+    }
+    .ctrl-btn:hover { background: rgba(255, 255, 255, 0.14); }
+    .ctrl-btn:active { transform: scale(0.92); }
+    .ctrl-btn svg { width: 22px; height: 22px; fill: currentColor; }
+
+    .ctrl-btn-main {
+      width: 64px;
+      height: 64px;
+      background: var(--accent);
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .ctrl-btn-main:hover { background: #6B46C1; }
+    .ctrl-btn-main svg { width: 26px; height: 26px; }
+
+    .ctrl-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .ctrl-btn:disabled:hover { background: rgba(255, 255, 255, 0.08); }
+
+    /* ============ Animations ============ */
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(12px, -18px) scale(1.06); }
+      66% { transform: translate(-8px, 12px) scale(0.94); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.15); }
+    }
+
+    /* ============ Responsive ============ */
+    @media (min-width: 481px) {
+      #app {
+        border-left: 1px solid rgba(255,255,255,0.05);
+        border-right: 1px solid rgba(255,255,255,0.05);
+      }
+    }
+    @media (max-width: 380px) {
+      .word-en { font-size: 56px; }
+      .word-ko { font-size: 26px; }
+      .example-en { font-size: 22px; }
+      .example-ko { font-size: 19px; }
+      .intro-day { font-size: 56px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Background blobs -->
+    <div class="bg-blob bg-blob-1"></div>
+    <div class="bg-blob bg-blob-2"></div>
+
+    <!-- Progress bar -->
+    <div class="progress-container" id="progress">
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-counter" id="progressCounter">1/1</div>
+    </div>
+
+    <!-- Intro Screen -->
+    <div class="screen active" id="screen-intro">
+      <div class="intro-day" id="introDay">DAY 1</div>
+      <div class="intro-count" id="introCount">1 WORD</div>
+    </div>
+
+    <!-- Word Screen -->
+    <div class="screen" id="screen-word">
+      <div class="word-number" id="wordNumber">#1</div>
+      <div class="word-en" id="wordEn" onclick="replayWordEn()">claim</div>
+      <div class="word-divider" id="wordDivider"></div>
+      <div class="word-ko" id="wordKo" onclick="replayWordKo()">주장하다; 주장, 요구</div>
+    </div>
+
+    <!-- Example Screen -->
+    <div class="screen" id="screen-example">
+      <div class="example-card">
+        <div class="example-label" id="exLabel">EXAMPLE</div>
+        <div class="example-en" id="exEn" onclick="replayExEn()"></div>
+        <div class="example-divider" id="exDivider"></div>
+        <div class="example-ko" id="exKo" onclick="replayExKo()"></div>
+      </div>
+    </div>
+
+    <!-- Outro Screen -->
+    <div class="screen" id="screen-outro">
+      <div class="outro-emoji" id="outroEmoji">🎉</div>
+      <div class="outro-title" id="outroTitle">잘했어요!</div>
+      <div class="outro-sub" id="outroSub">Great job! Keep studying 📚</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="ctrl-btn" id="btnPrev" title="이전 단어 (←)">
+        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button class="ctrl-btn ctrl-btn-main" id="btnPlay" title="재생/일시정지 (Space)">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="다음 단어 (→)">
+        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Inline speaker icon SVG template -->
+  <template id="speakerTpl">
+    <svg class="speaker-icon" viewBox="0 0 24 24" width="18" height="18">
+      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+    </svg>
+  </template>
+
+  <script>
+    // ============ DATA ============
+    const VOCAB_DATA = [
+      {
+        word: "claim",
+        meaning: "주장하다; 주장, 요구",
+        exampleEn: "He claims that he was robbed of all his belongings.",
+        exampleKo: "그는 자신의 모든 소지품을 강도를 당했다고 주장한다.",
+        highlightEn: "claims",
+        highlightKo: "주장한다",
+      },
+      {
+        word: "establish",
+        meaning: "설립하다, 확립하다",
+        exampleEn: "The millionaire established a charity for orphans in the country.",
+        exampleKo: "그 백만장자는 그 나라에 고아들을 위한 자선 단체를 설립했다.",
+        highlightEn: "established",
+        highlightKo: "설립했다",
+      },
+      {
+        word: "expert",
+        meaning: "전문가; 전문가의, 숙련된",
+        exampleEn: "They can test their knowledge with the experts.",
+        exampleKo: "그들은 전문가들과 함께 그들의 지식을 시험할 수 있다.",
+        highlightEn: "experts",
+        highlightKo: "전문가들",
+      },
+      {
+        word: "immediate",
+        meaning: "즉각적인",
+        exampleEn: "Immediate actions are needed to prevent wildfires.",
+        exampleKo: "산불을 예방하기 위해 즉각적인 조치들이 필요하다.",
+        highlightEn: "Immediate",
+        highlightKo: "즉각적인",
+      },
+      {
+        word: "emphasis",
+        meaning: "강조, 주안점",
+        exampleEn: "They placed great emphasis on the individual's freedom.",
+        exampleKo: "그들은 개인의 자유를 크게 강조했다.",
+        highlightEn: "emphasis",
+        highlightKo: "강조했다",
+      },
+    ];
+
+    const DAY_LABEL = "DAY 1";
+
+    // ============ STATE ============
+    let currentIndex = -1;  // -1 = intro
+    let flowId = 0;
+    let isPlaying = true;
+    let isPaused = false;
+    let pauseResolver = null;
+    let voicesLoaded = false;
+
+    // ============ DOM REFS ============
+    const $ = (sel) => document.querySelector(sel);
+    const screens = {
+      intro: $('#screen-intro'),
+      word: $('#screen-word'),
+      example: $('#screen-example'),
+      outro: $('#screen-outro'),
+    };
+
+    // ============ UTILITY ============
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function cancelled(id) {
+      return id !== flowId;
+    }
+
+    async function waitIfPaused(id) {
+      while (isPaused && !cancelled(id)) {
+        await new Promise(resolve => { pauseResolver = resolve; });
+      }
+    }
+
+    function escapeRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function highlightText(text, highlight, className) {
+      if (!highlight) return text;
+      const regex = new RegExp(`(${escapeRegex(highlight)})`, 'gi');
+      return text.replace(regex, `<span class="${className}">$1</span>`);
+    }
+
+    // ============ TTS ENGINE ============
+    function loadVoices() {
+      return new Promise(resolve => {
+        const voices = speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          voicesLoaded = true;
+          resolve(voices);
+          return;
+        }
+        speechSynthesis.addEventListener('voiceschanged', () => {
+          voicesLoaded = true;
+          resolve(speechSynthesis.getVoices());
+        }, { once: true });
+        // Fallback timeout
+        setTimeout(() => resolve(speechSynthesis.getVoices()), 1000);
+      });
+    }
+
+    function findVoice(lang) {
+      const voices = speechSynthesis.getVoices();
+      // Prefer specific voices
+      const preferred = lang.startsWith('en')
+        ? voices.find(v => v.name.includes('Jenny') || v.name.includes('Zira') || v.name.includes('David'))
+        : voices.find(v => v.lang.startsWith('ko'));
+      if (preferred) return preferred;
+      return voices.find(v => v.lang.startsWith(lang.substring(0, 2))) || null;
+    }
+
+    function speak(text, lang = 'en-US', rate = 0.9) {
+      return new Promise((resolve) => {
+        if (!text || !window.speechSynthesis) {
+          resolve();
+          return;
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        utterance.rate = rate;
+
+        const voice = findVoice(lang);
+        if (voice) utterance.voice = voice;
+
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+
+        speechSynthesis.speak(utterance);
+      });
+    }
+
+    let currentAudio = null;
+
+    function cancelSpeech() {
+      speechSynthesis.cancel();
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+      }
+    }
+
+    function playAudio(url) {
+      return new Promise((resolve) => {
+        cancelSpeech();
+        const audio = new Audio(url);
+        currentAudio = audio;
+        audio.onended = () => { currentAudio = null; resolve(); };
+        audio.onerror = () => { currentAudio = null; resolve(); };
+        audio.play().catch(() => resolve());
+      });
+    }
+
+    // ============ UI HELPERS ============
+    function showScreen(name) {
+      Object.entries(screens).forEach(([key, el]) => {
+        el.classList.toggle('active', key === name);
+      });
+    }
+
+    function setVisible(selector, visible) {
+      const el = $(selector);
+      if (el) el.classList.toggle('visible', visible);
+    }
+
+    function updateProgress() {
+      const total = VOCAB_DATA.length;
+      const idx = Math.max(0, currentIndex);
+      $('#progressFill').style.width = `${((idx + 1) / total) * 100}%`;
+      $('#progressCounter').textContent = `${idx + 1}/${total}`;
+    }
+
+    function resetWordScreen() {
+      setVisible('#wordNumber', false);
+      setVisible('#wordEn', false);
+      setVisible('#wordDivider', false);
+      setVisible('#wordKo', false);
+    }
+
+    function resetExampleScreen() {
+      setVisible('#exLabel', false);
+      setVisible('#exEn', false);
+      setVisible('#exDivider', false);
+      setVisible('#exKo', false);
+    }
+
+    // ============ REPLAY FUNCTIONS ============
+    function replayWordEn() {
+      if (currentIndex < 0 || currentIndex >= VOCAB_DATA.length) return;
+      cancelSpeech();
+      speak(VOCAB_DATA[currentIndex].word, 'en-US', 0.85);
+    }
+    function replayWordKo() {
+      if (currentIndex < 0 || currentIndex >= VOCAB_DATA.length) return;
+      cancelSpeech();
+      playAudio(`audio-ko/${VOCAB_DATA[currentIndex].word}-meaning.mp3`);
+    }
+    function replayExEn() {
+      if (currentIndex < 0 || currentIndex >= VOCAB_DATA.length) return;
+      cancelSpeech();
+      speak(VOCAB_DATA[currentIndex].exampleEn, 'en-US', 0.85);
+    }
+    function replayExKo() {
+      if (currentIndex < 0 || currentIndex >= VOCAB_DATA.length) return;
+      cancelSpeech();
+      playAudio(`audio-ko/${VOCAB_DATA[currentIndex].word}-example.mp3`);
+    }
+
+    // ============ MAIN FLOW ============
+    async function showIntro() {
+      const id = flowId;
+      showScreen('intro');
+      setVisible('.progress-container', false);
+
+      await delay(200);
+      if (cancelled(id)) return;
+      setVisible('#introDay', true);
+      setVisible('#introCount', true);
+
+      await delay(2000);
+      if (cancelled(id)) return;
+      await waitIfPaused(id);
+      if (cancelled(id)) return;
+    }
+
+    async function runWord(index) {
+      const id = ++flowId;
+      cancelSpeech();
+
+      currentIndex = index;
+      const item = VOCAB_DATA[index];
+      if (!item) return;
+
+      updateProgress();
+      updateControls();
+
+      // === WORD SCREEN ===
+      resetWordScreen();
+      resetExampleScreen();
+
+      // Set content
+      $('#wordNumber').textContent = `#${index + 1}`;
+      $('#wordEn').textContent = item.word;
+      $('#wordKo').textContent = item.meaning;
+
+      showScreen('word');
+      setVisible('.progress-container', true);
+
+      // Animate in: number → word → divider
+      await delay(150);
+      if (cancelled(id)) return;
+      setVisible('#wordNumber', true);
+
+      await delay(150);
+      if (cancelled(id)) return;
+      setVisible('#wordEn', true);
+      setVisible('#wordDivider', true);
+
+      // Play EN TTS
+      await delay(300);
+      if (cancelled(id)) return;
+      await waitIfPaused(id);
+      if (cancelled(id)) return;
+      await speak(item.word, 'en-US', 0.85);
+      if (cancelled(id)) return;
+
+      // Show Korean meaning (give time to absorb the word)
+      await delay(350);
+      if (cancelled(id)) return;
+      await waitIfPaused(id);
+      if (cancelled(id)) return;
+      setVisible('#wordKo', true);
+
+      // Play KO TTS (Typecast pre-generated)
+      await delay(200);
+      if (cancelled(id)) return;
+      await playAudio(`audio-ko/${item.word}-meaning.mp3`);
+      if (cancelled(id)) return;
+
+      // Pause before transition (fast transition)
+      await delay(600);
+      if (cancelled(id)) return;
+      await waitIfPaused(id);
+      if (cancelled(id)) return;
+
+      // === EXAMPLE SCREEN ===
+      // Set content with highlights
+      $('#exEn').innerHTML = highlightText(item.exampleEn, item.highlightEn, 'hl-en');
+      $('#exKo').innerHTML = highlightText(item.exampleKo, item.highlightKo, 'hl-ko');
+
+      showScreen('example');
+
+      // Animate in
+      await delay(200);
+      if (cancelled(id)) return;
+      setVisible('#exLabel', true);
+      setVisible('#exEn', true);
+
+      // Play EN example TTS (give time to read sentence)
+      await delay(400);
+      if (cancelled(id)) return;
+      await waitIfPaused(id);
+      if (cancelled(id)) return;
+      await speak(item.exampleEn, 'en-US', 0.85);
+      if (cancelled(id)) return;
+
+      // Show Korean translation
+      await delay(350);
+      if (cancelled(id)) return;
+      await waitIfPaused(id);
+      if (cancelled(id)) return;
+      setVisible('#exDivider', true);
+      setVisible('#exKo', true);
+
+      // Play KO example TTS (Typecast pre-generated)
+      await delay(200);
+      if (cancelled(id)) return;
+      await playAudio(`audio-ko/${item.word}-example.mp3`);
+      if (cancelled(id)) return;
+
+      // Pause before next word (fast transition)
+      await delay(800);
+      if (cancelled(id)) return;
+      await waitIfPaused(id);
+      if (cancelled(id)) return;
+
+      // Auto-advance
+      if (isPlaying) {
+        if (index < VOCAB_DATA.length - 1) {
+          runWord(index + 1);
+        } else {
+          showOutroScreen();
+        }
+      }
+    }
+
+    async function showOutroScreen() {
+      const id = ++flowId;
+      cancelSpeech();
+      showScreen('outro');
+      setVisible('.progress-container', false);
+
+      await delay(200);
+      if (cancelled(id)) return;
+      setVisible('#outroEmoji', true);
+      setVisible('#outroTitle', true);
+      setVisible('#outroSub', true);
+
+      currentIndex = VOCAB_DATA.length;
+      updateControls();
+    }
+
+    // ============ CONTROLS ============
+    function updateControls() {
+      $('#btnPrev').disabled = currentIndex <= 0;
+      $('#btnNext').disabled = currentIndex >= VOCAB_DATA.length;
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      $('#iconPlay').style.display = isPaused ? 'block' : 'none';
+      $('#iconPause').style.display = isPaused ? 'none' : 'block';
+
+      if (!isPaused && pauseResolver) {
+        pauseResolver();
+        pauseResolver = null;
+      }
+    }
+
+    function goNext() {
+      cancelSpeech();
+      if (currentIndex < VOCAB_DATA.length - 1) {
+        isPaused = false;
+        $('#iconPlay').style.display = 'none';
+        $('#iconPause').style.display = 'block';
+        runWord(currentIndex + 1);
+      } else if (currentIndex === VOCAB_DATA.length - 1) {
+        showOutroScreen();
+      }
+    }
+
+    function goPrev() {
+      cancelSpeech();
+      if (currentIndex > 0) {
+        isPaused = false;
+        $('#iconPlay').style.display = 'none';
+        $('#iconPause').style.display = 'block';
+        runWord(currentIndex - 1);
+      } else if (currentIndex >= 0) {
+        isPaused = false;
+        $('#iconPlay').style.display = 'none';
+        $('#iconPause').style.display = 'block';
+        runWord(0);
+      }
+    }
+
+    // ============ EVENT LISTENERS ============
+    $('#btnPlay').addEventListener('click', togglePause);
+    $('#btnNext').addEventListener('click', goNext);
+    $('#btnPrev').addEventListener('click', goPrev);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        togglePause();
+      } else if (e.key === 'ArrowRight') {
+        goNext();
+      } else if (e.key === 'ArrowLeft') {
+        goPrev();
+      }
+    });
+
+    // ============ INIT ============
+    async function init() {
+      // Update word count in intro
+      $('#introCount').textContent = `${VOCAB_DATA.length} WORD${VOCAB_DATA.length > 1 ? 'S' : ''}`;
+
+      // Load voices
+      await loadVoices();
+
+      // Start with play/pause icon correct
+      $('#iconPlay').style.display = 'none';
+      $('#iconPause').style.display = 'block';
+
+      // Run intro → first word
+      await showIntro();
+      runWord(0);
+    }
+
+    init();
+
+    // ============ SERVICE WORKER ============
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW registered:', reg.scope))
+          .catch(err => console.log('SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

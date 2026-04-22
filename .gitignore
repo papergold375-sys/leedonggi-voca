@@ -1,0 +1,5 @@
+make_audio_ko.py
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
