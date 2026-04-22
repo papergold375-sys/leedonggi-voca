@@ -654,6 +654,7 @@
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = lang;
         utterance.rate = rate;
+        utterance.volume = 1.0;
 
         const voice = findVoice(lang);
         if (voice) utterance.voice = voice;
@@ -763,10 +764,17 @@
       setVisible('#introDay', true);
       setVisible('#introCount', true);
 
-      await delay(2000);
-      if (cancelled(id)) return;
-      await waitIfPaused(id);
-      if (cancelled(id)) return;
+      // Wait for user to tap play (required for iOS audio unlock)
+      if (!isPaused) {
+        await delay(2000);
+        if (cancelled(id)) return;
+        await waitIfPaused(id);
+        if (cancelled(id)) return;
+      } else {
+        // Wait until user taps play
+        await waitIfPaused(id);
+        if (cancelled(id)) return;
+      }
     }
 
     async function runWord(index) {
@@ -984,11 +992,13 @@
         // Load voices (non-blocking, safe on iOS)
         await loadVoices();
 
-        // Start with play/pause icon correct
-        $('#iconPlay').style.display = 'none';
-        $('#iconPause').style.display = 'block';
+        // Start PAUSED - user must tap play to begin
+        // This provides the required user gesture for iOS audio unlock
+        isPaused = true;
+        $('#iconPlay').style.display = 'block';
+        $('#iconPause').style.display = 'none';
 
-        // Run intro → first word
+        // Run intro (will wait for user to tap play)
         await showIntro();
         runWord(0);
       } catch(e) {
