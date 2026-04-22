@@ -1,4 +1,4 @@
-const CACHE_NAME = 'idonggi-voca-v2';
+const CACHE_NAME = 'idonggi-voca-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
