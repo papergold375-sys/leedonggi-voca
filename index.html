@@ -599,20 +599,39 @@
     }
 
     // ============ TTS ENGINE ============
+    // iOS audio unlock: must play a sound from user gesture first
+    let audioUnlocked = false;
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      const silentAudio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAABhuxCl+EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAABhuxCl+EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+      silentAudio.play().then(() => {
+        audioUnlocked = true;
+      }).catch(() => {});
+    }
+    // Unlock audio on any user touch/click
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+
     function loadVoices() {
       return new Promise(resolve => {
-        const voices = speechSynthesis.getVoices();
-        if (voices.length > 0) {
-          voicesLoaded = true;
-          resolve(voices);
+        if (!window.speechSynthesis) {
+          resolve([]);
           return;
         }
-        speechSynthesis.addEventListener('voiceschanged', () => {
-          voicesLoaded = true;
-          resolve(speechSynthesis.getVoices());
-        }, { once: true });
-        // Fallback timeout
-        setTimeout(() => resolve(speechSynthesis.getVoices()), 1000);
+        try {
+          const voices = speechSynthesis.getVoices();
+          if (voices.length > 0) {
+            voicesLoaded = true;
+            resolve(voices);
+            return;
+          }
+          speechSynthesis.addEventListener('voiceschanged', () => {
+            voicesLoaded = true;
+            resolve(speechSynthesis.getVoices());
+          }, { once: true });
+        } catch(e) {}
+        // Fallback timeout (shorter for iOS)
+        setTimeout(() => resolve([]), 800);
       });
     }
 
@@ -649,7 +668,9 @@
     let currentAudio = null;
 
     function cancelSpeech() {
-      speechSynthesis.cancel();
+      if (window.speechSynthesis) {
+        try { speechSynthesis.cancel(); } catch(e) {}
+      }
       if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
@@ -929,19 +950,26 @@
 
     // ============ INIT ============
     async function init() {
-      // Update word count in intro
-      $('#introCount').textContent = `${VOCAB_DATA.length} WORD${VOCAB_DATA.length > 1 ? 'S' : ''}`;
+      try {
+        // Update word count in intro
+        $('#introCount').textContent = `${VOCAB_DATA.length} WORD${VOCAB_DATA.length > 1 ? 'S' : ''}`;
 
-      // Load voices
-      await loadVoices();
+        // Load voices (non-blocking, safe on iOS)
+        await loadVoices();
 
-      // Start with play/pause icon correct
-      $('#iconPlay').style.display = 'none';
-      $('#iconPause').style.display = 'block';
+        // Start with play/pause icon correct
+        $('#iconPlay').style.display = 'none';
+        $('#iconPause').style.display = 'block';
 
-      // Run intro → first word
-      await showIntro();
-      runWord(0);
+        // Run intro → first word
+        await showIntro();
+        runWord(0);
+      } catch(e) {
+        console.error('Init error:', e);
+        // Fallback: show intro anyway
+        setVisible('#introDay', true);
+        setVisible('#introCount', true);
+      }
     }
 
     init();
