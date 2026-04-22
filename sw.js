@@ -1,20 +1,33 @@
-const CACHE_NAME = 'idonggi-voca-v3';
+const CACHE_NAME = 'idonggi-voca-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
-  './audio-ko/claim-meaning.mp3',
-  './audio-ko/claim-example.mp3',
-  './audio-ko/establish-meaning.mp3',
-  './audio-ko/establish-example.mp3',
-  './audio-ko/expert-meaning.mp3',
-  './audio-ko/expert-example.mp3',
-  './audio-ko/immediate-meaning.mp3',
-  './audio-ko/immediate-example.mp3',
-  './audio-ko/emphasis-meaning.mp3',
-  './audio-ko/emphasis-example.mp3',
+  './icons/apple-touch-icon.png',
+  // English audio (word + example)
+  './audio/claim-word.mp3',
+  './audio/establish-word.mp3',
+  './audio/expert-word.mp3',
+  './audio/immediate-word.mp3',
+  './audio/emphasis-word.mp3',
+  './audio/claim-example-en.mp3',
+  './audio/establish-example-en.mp3',
+  './audio/expert-example-en.mp3',
+  './audio/immediate-example-en.mp3',
+  './audio/emphasis-example-en.mp3',
+  // Korean audio (meaning + example)
+  './audio/claim-meaning.mp3',
+  './audio/establish-meaning.mp3',
+  './audio/expert-meaning.mp3',
+  './audio/immediate-meaning.mp3',
+  './audio/emphasis-meaning.mp3',
+  './audio/claim-example-ko.mp3',
+  './audio/establish-example-ko.mp3',
+  './audio/expert-example-ko.mp3',
+  './audio/immediate-example-ko.mp3',
+  './audio/emphasis-example-ko.mp3',
 ];
 
 // Install: cache all static assets
@@ -49,7 +62,6 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
       return fetch(event.request).then((networkResponse) => {
-        // Cache new requests dynamically (e.g., Google Fonts)
         if (event.request.method === 'GET' && networkResponse.status === 200) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -58,7 +70,6 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Offline fallback
         return caches.match('./index.html');
       });
     })

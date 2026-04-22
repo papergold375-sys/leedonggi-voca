@@ -735,22 +735,22 @@
     function replayWordEn() {
       if (currentIndex < 0 || currentIndex >= VOCAB_DATA.length) return;
       cancelSpeech();
-      speak(VOCAB_DATA[currentIndex].word, 'en-US', 0.85);
+      playAudio(`audio/${VOCAB_DATA[currentIndex].word}-word.mp3`);
     }
     function replayWordKo() {
       if (currentIndex < 0 || currentIndex >= VOCAB_DATA.length) return;
       cancelSpeech();
-      playAudio(`audio-ko/${VOCAB_DATA[currentIndex].word}-meaning.mp3`);
+      playAudio(`audio/${VOCAB_DATA[currentIndex].word}-meaning.mp3`);
     }
     function replayExEn() {
       if (currentIndex < 0 || currentIndex >= VOCAB_DATA.length) return;
       cancelSpeech();
-      speak(VOCAB_DATA[currentIndex].exampleEn, 'en-US', 0.85);
+      playAudio(`audio/${VOCAB_DATA[currentIndex].word}-example-en.mp3`);
     }
     function replayExKo() {
       if (currentIndex < 0 || currentIndex >= VOCAB_DATA.length) return;
       cancelSpeech();
-      playAudio(`audio-ko/${VOCAB_DATA[currentIndex].word}-example.mp3`);
+      playAudio(`audio/${VOCAB_DATA[currentIndex].word}-example-ko.mp3`);
     }
 
     // ============ MAIN FLOW ============
@@ -810,12 +810,12 @@
       setVisible('#wordEn', true);
       setVisible('#wordDivider', true);
 
-      // Play EN TTS
+      // Play EN TTS (pre-generated mp3)
       await delay(300);
       if (cancelled(id)) return;
       await waitIfPaused(id);
       if (cancelled(id)) return;
-      await speak(item.word, 'en-US', 0.85);
+      await playAudio(`audio/${item.word}-word.mp3`);
       if (cancelled(id)) return;
 
       // Show Korean meaning (give time to absorb the word)
@@ -825,10 +825,10 @@
       if (cancelled(id)) return;
       setVisible('#wordKo', true);
 
-      // Play KO TTS (Typecast pre-generated)
+      // Play KO TTS (pre-generated mp3)
       await delay(200);
       if (cancelled(id)) return;
-      await playAudio(`audio-ko/${item.word}-meaning.mp3`);
+      await playAudio(`audio/${item.word}-meaning.mp3`);
       if (cancelled(id)) return;
 
       // Pause before transition (fast transition)
@@ -850,12 +850,12 @@
       setVisible('#exLabel', true);
       setVisible('#exEn', true);
 
-      // Play EN example TTS (give time to read sentence)
+      // Play EN example TTS (pre-generated mp3)
       await delay(400);
       if (cancelled(id)) return;
       await waitIfPaused(id);
       if (cancelled(id)) return;
-      await speak(item.exampleEn, 'en-US', 0.85);
+      await playAudio(`audio/${item.word}-example-en.mp3`);
       if (cancelled(id)) return;
 
       // Show Korean translation
@@ -866,10 +866,10 @@
       setVisible('#exDivider', true);
       setVisible('#exKo', true);
 
-      // Play KO example TTS (Typecast pre-generated)
+      // Play KO example TTS (pre-generated mp3)
       await delay(200);
       if (cancelled(id)) return;
-      await playAudio(`audio-ko/${item.word}-example.mp3`);
+      await playAudio(`audio/${item.word}-example-ko.mp3`);
       if (cancelled(id)) return;
 
       // Pause before next word (fast transition)
