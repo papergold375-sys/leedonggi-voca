@@ -665,27 +665,34 @@
       });
     }
 
-    let currentAudio = null;
+    // Single reusable audio element (iOS requires reusing the same element)
+    const sharedAudio = new Audio();
+    let audioResolve = null;
+
+    sharedAudio.addEventListener('ended', () => {
+      if (audioResolve) { audioResolve(); audioResolve = null; }
+    });
+    sharedAudio.addEventListener('error', () => {
+      if (audioResolve) { audioResolve(); audioResolve = null; }
+    });
 
     function cancelSpeech() {
       if (window.speechSynthesis) {
         try { speechSynthesis.cancel(); } catch(e) {}
       }
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio = null;
-      }
+      sharedAudio.pause();
+      sharedAudio.currentTime = 0;
+      if (audioResolve) { audioResolve(); audioResolve = null; }
     }
 
     function playAudio(url) {
       return new Promise((resolve) => {
         cancelSpeech();
-        const audio = new Audio(url);
-        currentAudio = audio;
-        audio.onended = () => { currentAudio = null; resolve(); };
-        audio.onerror = () => { currentAudio = null; resolve(); };
-        audio.play().catch(() => resolve());
+        audioResolve = resolve;
+        sharedAudio.src = url;
+        sharedAudio.play().catch(() => {
+          if (audioResolve) { audioResolve(); audioResolve = null; }
+        });
       });
     }
 
